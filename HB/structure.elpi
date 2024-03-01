@@ -486,19 +486,24 @@ declare-unification-hints SortProj ClassProj CurrentClass NewJoins :- std.do! [
 
 % For each mixin we declare a field and apply the mixin to its dependencies
 % (that are previously declared fields recorded via field-for-mixin)
+% Keeps track of whether every field is in Prop
 :index (_ 1)
 func synthesize-fields term, list (w-args mixinname) -> record-decl.
-synthesize-fields _T []     end-record.
-synthesize-fields T  [triple M Args _|ML] (field _ Name MTy Fields) :- std.do! [
+synthesize-fields _T []     end-record tt.
+synthesize-fields T  [triple M Args V|ML] (field _ Name MTy Fields) B :- std.do! [
+  if (coq.typecheck {mk-app (global M) {std.append Args [V]} } {{ Prop }} ok)
+    (B = B2)
+    (B = ff),
   Name is {gref->modname M 2 "_"} ^ "_mixin",
   if-verbose (coq.say {header} "typing class field" M),
-  std.assert! (synthesis.infer-all-gref->deps Args T M MTy) "anomaly: a field type cannot be solved",
-  @pi-decl `m` MTy m\ mixin-src T M m => synthesize-fields T ML (Fields m)
+  std.assert! (synthesis.infer-all-gref-deps Args T M MTy) "anomaly: a field type cannot be solved",
+  @pi-decl `m` MTy m\ mixin-src T M m => synthesize-fields T ML (Fields m) B2
 ].
 
 func synthesize-fields.body list term, term, list (w-args mixinname) -> indt-decl.
-synthesize-fields.body _Params T ML (record "axioms_" {{ Type }} "Class" FS) :-
-  synthesize-fields T ML FS.
+synthesize-fields.body _Params T ML (record "axioms_" Ty "Class" FS) :-
+  synthesize-fields T ML FS B,
+  if (B = tt) (Ty = {{ Prop }}) (Ty = {{ Type }}).
 
 func mk-record+sort-field sort, name, term, (term -> record-decl) -> indt-decl.
 mk-record+sort-field Sort _ T F (record "type" (sort Sort) "Pack" (field _ "sort" T F)).
