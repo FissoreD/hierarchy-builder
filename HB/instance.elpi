@@ -102,9 +102,14 @@ declare-all _ [] [].
 declare-all T [class _ Struct _|Rest] L :- has-instance T Struct, !,
   declare-all T Rest L.
 declare-all T [class Class Struct MLwP|Rest] [pr Name CS|L] :-
-  infer-class T Class Struct MLwP S Name STy Clauses, !,
-  decl-const-in-struct Name S STy CS,
-  if (get-option "verbose" tt) (std.spy (Clauses => declare-all T Rest L)) (Clauses => declare-all T Rest L).
+
+  infer-class T Class Struct MLwP S Name STy Clauses,
+
+  !,
+
+  decl-const-in-struct T Class Name S STy CS,
+
+  Clauses => declare-all T Rest L.
 
 declare-all T [class HasNoInstance _ _|Rest] L :-
   % filter out classes we can't build for sure
@@ -128,7 +133,7 @@ declare-all-on-type-constructor TK [class Class Struct MLwP|Rest] [pr Name CS|L]
   abstract-holes.main S SC,
   std.assert-ok! (coq.typecheck SC SCTy) "declare-all-on-type-constructor: badly closed",
   
-  decl-const-in-struct Class Name SC SCTy CS,
+  decl-const-in-struct T Class Name SC SCTy CS,
 
   Clauses => declare-all-on-type-constructor TK Rest L.
 
@@ -146,7 +151,7 @@ has-instance T Struct :-
      fail. % we build it
 
 pred infer-class i:term, i:classname, i:gref, i:factories, o:term, o:string, o:term, o:list prop.
-infer-class T Class Struct MLwP S Name STy Clauses:- std.do![
+infer-class T Class Struct MLwP S Name STy Clauses:- std.spy-do![
 
   params->holes MLwP Params,
   get-constructor Class KC,
@@ -168,12 +173,17 @@ infer-class T Class Struct MLwP S Name STy Clauses:- std.do![
      
 ].
 
-pred decl-const-in-struct i:gref, i:string, i:term, i:term, i:constant.
-decl-const-in-struct _Class Name S STy CS:- std.do![
+pred decl-const-in-struct i:term, i:gref, i:string, i:term, i:term, i:constant.
+decl-const-in-struct T Class Name S STy CS:- std.do![
+	coq.say "decl-const-in-struct" T Class Name S STy CS,
   log.coq.env.add-const-noimplicits Name S STy @transparent! CS, % Bug coq/coq#11155, could be a Let
   % TODO: fine tune the instance priority, I do not see the API for that now.
 	% FIXME: compute the correct priority
-  with-locality (coq.TC.declare-instance (const CS) 1), % Bug coq/coq#11155, should be local
+  @local! => with-locality (coq.TC.declare-instance (const CS) 1), % Bug coq/coq#11155, should be local
+	coq.safe-dest-app STy (global Hd) _,
+	term->cs-pattern T Pat,
+	class-def (class Hd Struct _),
+	coq.elpi.accumulate _ "hb.db" (clause _ _ (has-canonical-structure-on Pat Struct)),
   acc-clause current (local-canonical CS),
   if-verbose (coq.say {header} "structure instance" Name "declared"),
 ].
@@ -280,10 +290,6 @@ func declare-instance factoryname, term, term
   -> list prop, list (pair id constant), list (pair id constant).
 declare-instance Factory T F Clauses CFL CSL :-
   current-mode (builder-from T TheFactory FGR _), !,
-  if (get-option "local" tt)
-    (coq.error "HB: declare-instance: cannot make builders local.
-    If you want temporary instances, make an alias, e.g. with let T' := T") true,
-  !,
   declare-canonical-instances-from-factory-and-local-builders Factory
     T F TheFactory FGR Clauses CFL CSL.
 declare-instance Factory T F Clauses CFL CSL :-
@@ -383,8 +389,8 @@ declare-canonical-instances-from-factory Factory T F ClausesHas CFL CSL :- std.d
     MLCano => std.do! [
       list-w-params_list {factory-provides Factory} ML,
       add-all-mixins T Factory ML tt Clauses CFL,
-      std.map-filter Clauses (mixin-src->has-mixin-instance ) ClausesHas,
-      ClausesHas => declare-all T {findall-classes-for ML} CSL, % declare-all-on-type-constructor doesn't work here
+      std.spy (std.map-filter Clauses (mixin-src->has-mixin-instance ) ClausesHas),
+      ClausesHas => std.spy (declare-all T {findall-classes-for ML} CSL), % declare-all-on-type-constructor doesn't work here
     ]
   ],
 ].
