@@ -11,8 +11,8 @@ from_factory (from X _ _) X.
 func from_mixin prop -> mixinname.
 from_mixin (from _ X _) X.
 
-func from_builder prop -> term.
-from_builder (from _ _ X) (global X).
+pred from_builder i:prop, o:term.
+from_builder (from _ _ X) X.
 
 func mixin-src_mixin prop -> mixinname.
 mixin-src_mixin (mixin-src _ M _) M.
