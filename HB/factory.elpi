@@ -192,21 +192,21 @@ cdecl->w-mixins.mixins (context-item ID _ TySkel none Rest) Out :- !,
 
 % The identity builder
 func declare-id-builder factoryname -> prop.
-declare-id-builder GR (from GR GR (global (const C))) :- std.do! [
+declare-id-builder GR (from GR GR (const C)) :- std.do! [
   gref-deps GR GRD,
   synthesis.mixins-w-params.fun GRD (declare-id-builder.aux GR) IDBodySkel,
   std.assert-ok! (coq.elaborate-skeleton IDBodySkel IDType IDBody) "identity builder illtyped",
   log.coq.env.add-const-noimplicits "identity_builder" IDBody IDType @transparent! C,
 ].
 declare-id-builder.aux GR Params TheType (fun `x` Ty x\x) :-
-  synthesis.infer-all-gref->deps Params TheType GR Ty.
+  synthesis.infer-all-gref-deps Params TheType GR Ty.
 
 % [mk-factory-abbrev Str GR CL FactAbbrev]
 % creates an abbreviation for GR names Str and creates a phant-abbrev clause in CL.
 % FactAbbrev is the short name for the factory (either an alias of the class record)
 func mk-factory-abbrev string, gref -> list prop, factory-abbrev.
 mk-factory-abbrev Str GR Aliases FactAbbrev :-
-  if (factory-alias->gref GR _ ok)
+  if (factory-alias->gref GR _)
      (Aliases = [],
       FactAbbrev = by-classname GR)
      (phant.of-gref ff GR [] PhTerm,
@@ -275,7 +275,7 @@ declare-mixin-or-factory MixinSrcClauses SectionCanonicalInstance
   factories-provide GRFSwP MLwP,
   w-params.nparams MLwP NParams,
   build-deps-for-projections R MLwP GRDepsClausesProjs,
-  GRDepsClauses = [gref->deps (indt R) MLwP, gref->deps (indc K) MLwP|GRDepsClausesProjs],
+  GRDepsClauses = [gref-deps (indt R) MLwP, gref-deps (indc K) MLwP|GRDepsClausesProjs],
 
   % GRDepsClauses => mk-factory-sort MLwP (indt R) _ FactorySortCoe,
   % FactorySortCoe = coercion GRFSort _ _ _,
@@ -303,7 +303,7 @@ declare-mixin-or-factory MixinSrcClauses SectionCanonicalInstance
     factory->constructor (indt R) GRK,
     factory->nparams (indt R) NParams,
     phant-abbrev GRK (const BuildConst) BuildAbbrev,
-    % gref->deps GRFSort MLwP,
+    % gref-deps GRFSort MLwP,
     % factory-sort FactorySortCoe,
   ]] NewClauses,
   acc-clauses current NewClauses,
@@ -340,10 +340,10 @@ declare-factory-alias MixinSrcClauses SectionCanonicalInstance
   log.coq.env.add-const-noimplicits "axioms_" Ty1Closed _ @transparent! C,
 
   std.assert! (safe-dest-app Ty1 (global PhF) _Args) "Argument must be a factory",
-  std.assert-ok! (factory-alias->gref PhF F) "HB",
+  std.assert! (factory-alias->gref PhF F) "HB",
   std.assert! (factory->constructor F FK) "BUG: Factory constructor missing",
 
-  MixinSrcClauses => synthesis.infer-all-gref->deps TheParams TheType FK MFK,
+  MixinSrcClauses => synthesis.infer-all-gref-deps TheParams TheType FK MFK,
   std.assert-ok! (coq.typecheck MFK MFKTy) "BUG: typecking of former factory constructor failed",
   (pi Args\ copy (app[global F|Args]) (app[global (const C)|Section])) => copy MFKTy MFKTyC,
 
@@ -357,7 +357,7 @@ declare-factory-alias MixinSrcClauses SectionCanonicalInstance
   @global! => log.coq.arguments.set-implicit GRK [[]],
 
   factories-provide GRFSwP MLwP,
-  GRDepsClauses = [gref->deps (const C) MLwP, gref->deps (const CK) MLwP],
+  GRDepsClauses = [gref-deps (const C) MLwP, gref-deps (const CK) MLwP],
 
   GRDepsClauses => phant.of-gref ff GRK [] PhGRK0,
 
@@ -379,7 +379,7 @@ declare-factory-alias MixinSrcClauses SectionCanonicalInstance
       [ is-factory (const C),
         factory->nparams (const C) NParams,
         factory->constructor (const C) GRK,
-        % gref->deps GRFSort MLwP,
+        % gref-deps GRFSort MLwP,
         % factory-sort FactorySortCoe
       ]
     ] NewClauses,
@@ -406,7 +406,7 @@ func build-deps-for-projections inductive, mixins -> list prop.
 build-deps-for-projections R MLwP CL :- std.do! [
   compat.map-filter {coq.env.projections R} (x\y\x = some y) MixinOps,
   list-w-params.rcons MLwP (pl\t\r\ r = triple (indt R) pl t) MLRwP,
-  std.map MixinOps (gr\r\ r = gref->deps (const gr) MLRwP) CL,
+  std.map MixinOps (gr\r\ r = gref-deps (const gr) MLRwP) CL,
 ].
 
 % Section handling in Coq is smart, in the sense it it only abstracts over
@@ -437,7 +437,7 @@ mk-factory-sort MLwP GR (const FactorySortCst) Coe :-
   synthesis.infer-coercion-tgt MLwP CoeClass,
   Coe = coercion (const FactorySortCst) MLwPLength GR CoeClass.
 func mk-factory-sort.term gref, list term, term -> term.
-mk-factory-sort.term GR P T (fun `_` Ty _\ T) :- synthesis.infer-all-gref->deps P T GR Ty.
+mk-factory-sort.term GR P T (fun `_` Ty _\ T) :- synthesis.infer-all-gref-deps P T GR Ty.
 
 
 

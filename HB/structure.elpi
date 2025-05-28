@@ -14,7 +14,7 @@ declare Module BSkel Sort :- std.do! [
   
   factories-provide GRFSwP PMLwP,
 
-  list-w-params.flatten-map GRFSwP gref->deps RMLwP, % TODO: extract code from factories-provide
+  list-w-params.flatten-map GRFSwP gref-deps RMLwP, % TODO: extract code from factories-provide
   list-w-params.append PMLwP RMLwP UnsortedMLwP,
   w-params.map UnsortedMLwP (p\t\ toposort-mixins) MLwP,
 
@@ -41,11 +41,11 @@ declare Module BSkel Sort :- std.do! [
     ClassName Structure SortProjection ClassProjection Factories StructKeyClause,
 
   w-params.map MLwP (_\_\_\ mk-nil) NilwP,
-  ClassAlias = (factory-alias->gref ClassName ClassName ok),
+  ClassAlias = (factory-alias->gref ClassName ClassName),
   CurrentClass = (class ClassName Structure MLwP),
   ClassName = indt ClassInd, coq.env.indt ClassInd _ _ _ _ [ClassK] _,
   GRDepsClauses =
-    [gref->deps (indt ClassInd) NilwP, gref->deps (indc ClassK) MLwP],
+    [gref-deps (indt ClassInd) NilwP, gref-deps (indc ClassK) MLwP],
   std.map ML (m\ o\ o = mixin-class m ClassName) MixinMems,
   std.filter ML (m\ not (mixin->first-class m _)) NewMixins,
   std.map NewMixins (m\ r\ r = mixin->first-class m ClassName) MixinFirstClass,
@@ -98,7 +98,7 @@ declare Module BSkel Sort :- std.do! [
   @global! => coq.TC.declare-instance ClassP 0,
 
   %(ClassAlias => class-def CurrentClass =>
-  %  GRDepsClauses => MixinFirstClass => gref->deps GRPack MLwP =>
+  %  GRDepsClauses => MixinFirstClass => gref-deps GRPack MLwP =>
   %    phant.of-gref tt GRPack [] PhRepack),
   %if-verbose (coq.say {header} "declaring pack abbreviation =" PhRepack),
   % phant.add-abbreviation "pack" PhRepack _ PackAbbrev,
@@ -149,7 +149,7 @@ declare Module BSkel Sort :- std.do! [
   std.flatten [
       Factories, [is-structure Structure],
       NewJoins, [class-def CurrentClass], GRDepsClauses,
-      [gref->deps GRPack MLwP], MixinMems, [StructKeyClause]
+      [gref-deps GRPack MLwP], MixinMems, [StructKeyClause]
     ]
     NewClauses,
   acc-clauses current NewClauses,
@@ -227,7 +227,7 @@ shorten coq.{ term->gref, subst-fun, safe-dest-app, mk-app, mk-eta, subst-prod }
 func clean-op-ty list prop, term, term -> term.
 clean-op-ty [] _ T1 T2 :- copy T1 T2.
 clean-op-ty [exported-op _ Po C|Ops] S T1 T2 :-
-  gref->deps (const Po) MLwP,
+  std.once(gref-deps (const Po) MLwP),
   w-params.nparams MLwP NParams,
   std.length {list-w-params_list MLwP} NMixins,
 
@@ -253,7 +253,7 @@ operation-body-and-ty EXI Poperation Struct Psort Pclass Params _T (triple _ Par
       mk-app PclassP [s] Class,
       synthesis.under-mixin-src-from-factory.do! Carrier Class [
         % just in case..
-        synthesis.infer-all-gref->deps ParamsOp Carrier (const Poperation) (Body s),
+        synthesis.infer-all-gref-deps ParamsOp Carrier (const Poperation) (Body s),
         std.assert-ok! (coq.typecheck (Body s) (DirtyTy s)) "export-1-operation: Body illtyped",
         clean-op-ty EXI s (DirtyTy s) (BodyTy s),
       ],
@@ -364,21 +364,19 @@ mk-coe-class-body FC TC TMLwP Params T _ CoeBody :- std.do! [
 
   list-w-params_list TMLwP TML,
   std.map TML (from FC) Builders,
-  std.map Builders (x\r\if (x = (primitive (proj _ _))) (r = x) (mk-app x Params r)) BuildersP,
+  std.map Builders (x\r\mk-app (global x) Params r) BuildersP,
 
   factory->nparams TC TCNP,
   mk-app (global {get-constructor TC})
     {coq.mk-n-holes TCNP} KCHoles,
 
   (pi c\ sigma Mixes\
-    std.map BuildersP (builder\r\
-      if (builder = primitive (proj _ _))
-        (r = app [builder, c])
-        (r = app[builder, T, c])) Mixes,
+    std.map BuildersP (builder\r\ r = app[builder, T, c]) Mixes,
     mk-app KCHoles [T | Mixes] (ClassCoercion c)),
 
   CoeBody = {{ fun (c : lp:Class) => lp:(ClassCoercion c) }}
 ].
+
 
 pred mk-coe-structure-class-body
   i:structure, % From structure
@@ -578,21 +576,18 @@ declare-unification-hints SortProj ClassProj CurrentClass NewJoins :- std.do! [
 % Keeps track of whether every field is in Prop
 :index (_ 1)
 func synthesize-fields term, list (w-args mixinname) -> record-decl.
-synthesize-fields _T []     end-record tt.
-synthesize-fields T  [triple M Args V|ML] (field _ Name MTy Fields) B :- std.do! [
-  if (coq.typecheck {mk-app (global M) {std.append Args [V]} } {{ Prop }} ok)
-    (B = B2)
-    (B = ff),
+synthesize-fields _T []     end-record.
+synthesize-fields T  [triple M Args _|ML] (field _ Name MTy Fields) :- std.do! [
   Name is {gref->modname M 2 "_"} ^ "_mixin",
   if-verbose (coq.say {header} "typing class field" M),
   std.assert! (synthesis.infer-all-gref-deps Args T M MTy) "anomaly: a field type cannot be solved",
-  @pi-decl `m` MTy m\ mixin-src T M m => synthesize-fields T ML (Fields m) B2
+  @pi-decl `m` MTy m\ mixin-src T M m => synthesize-fields T ML (Fields m)
 ].
 
+
 func synthesize-fields.body list term, term, list (w-args mixinname) -> indt-decl.
-synthesize-fields.body _Params T ML (record "axioms_" Ty "Class" FS) :-
-  synthesize-fields T ML FS B,
-  if (B = tt) (Ty = {{ Prop }}) (Ty = {{ Type }}).
+synthesize-fields.body _Params T ML (record "axioms_" {{ Type }} "Class" FS) :-
+  synthesize-fields T ML FS.
 
 func mk-record+sort-field sort, name, term, (term -> record-decl) -> indt-decl.
 mk-record+sort-field Sort _ T F (record "type" (sort Sort) "Pack" (field _ "sort" T F)).
@@ -609,9 +604,7 @@ declare-class+structure MLwP Sort
 
   if-verbose (coq.say {header} "declare axioms record"MLwP ),
 
-  % TODO: enhance elpi-typechecker to deduce the type of `mk-parameter explicit` from the argmuments
-  % passed to w-params.then
-  w-params.then MLwP (mk-parameter explicit : (pred i:name, i:term, i:(term -> indt-decl), o:indt-decl)) (mk-parameter explicit)
+  w-params.then MLwP (x\y\z\r\mk-parameter explicit x y z (r:indt-decl)) (x\y\z\r\mk-parameter explicit x y z (r:indt-decl))
     synthesize-fields.body ClassDeclaration,
 
   std.assert-ok! (coq.typecheck-indt-decl ClassDeclaration) "declare-class: illtyped",
@@ -620,15 +613,14 @@ declare-class+structure MLwP Sort
   coq.env.projections ClassInd Projs,
   % TODO: put this code in a named clause
   w-params.nparams MLwP NParams,
-  std.map2 {list-w-params_list MLwP} Projs (m\ p\ r\ sigma P PP PC PN\
-    std.assert! (p = some PC) "BUG: we build a class with an anonymous field",
-    if (coq.env.primitive-projection? PP PC PN) (P = primitive (proj PP PN)) (P = global (const PC)),
-    r = from (indt ClassInd) m P) Factories,
-  AllFactories = [factory-nparams (indt ClassInd) NParams | Factories],
+  std.map2 {list-w-params_list MLwP} Projs (m\ p\ r\ sigma P\
+    std.assert! (p = some P) "BUG: we build a class with an anonymous field",
+    r = from (indt ClassInd) m (const P)) Factories,
+  AllFactories = [factory->nparams (indt ClassInd) NParams | Factories],
 
   if-verbose (coq.say {header} "declare type record"),
 
-  w-params.then MLwP (mk-parameter explicit : (pred i:name, i:term, i:(term -> indt-decl), o:indt-decl)) (mk-record+sort-field Sort)
+  w-params.then MLwP (x\y\z\r\mk-parameter explicit x y z (r:indt-decl)) (mk-record+sort-field Sort)
     (mk-class-field (indt ClassInd)) StructureDeclaration,
 
   std.assert-ok! (coq.typecheck-indt-decl StructureDeclaration) "declare: illtyped",
@@ -637,12 +629,8 @@ declare-class+structure MLwP Sort
     (log.coq.env.add-indt StructureDeclaration StructureInd),
 
   coq.env.projections StructureInd [some SortP, some ClassP],
-  if (coq.env.primitive-projection? SortPP SortP SortPN)
-    (SortProjection = primitive (proj SortPP SortPN))
-    (SortProjection = global (const SortP)),
-  if (coq.env.primitive-projection? ClassPP ClassP ClassPN)
-    (ClassProjection = primitive (proj ClassPP ClassPN))
-    (ClassProjection = global (const ClassP)),
+  global (const SortP) = SortProjection,
+  global (const ClassP) = ClassProjection,
 ].
 
 % Declares "sort" as a Coercion Proj : Structurename >-> CoeClass.
@@ -759,7 +747,7 @@ pack-body ClassName PL T MLwA F :- std.do! [
     (pack-body.aux PL T BuildC PackS) F,
 ].
 pack-body.aux PL T BuildC PackS  Body :- !, std.do! [
-  synthesis.infer-all-gref->deps PL T BuildC Class,
+  synthesis.infer-all-gref-deps PL T BuildC Class,
   mk-app (global PackS) {std.append PL [T, Class]} Body
 ].
 

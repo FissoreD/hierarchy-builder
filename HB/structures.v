@@ -217,7 +217,7 @@ namespace hb {
     pred abstract-params i:term, i:list term, i:term, i:term, o:term, o:term.
     abstract-params (prod N Ty TBody) [P|Args] T X RT RX :-
       (@pi-decl N Ty x\ abstract-params (TBody x) Args T X (T'' x) (X'' x),
-        copy P x => (copy (T'' x) (T' x),
+        copy P x =!=> (copy (T'' x) (T' x),
           copy (X'' x) (X' x))
       ),
       RT = prod N Ty (x\ prod _ {{ @unify lp:Ty lp:Ty lp:x lp:P nomsg }} (u\ T' x)),
@@ -241,7 +241,7 @@ namespace hb {
       CopyClauses => copy! (TBody x) TBody',
       simpl-tc-instance.avoid-pattern xs TBody',
       simpl-tc-instance.check-progress (TBody x) TBody',
-      copy x Bx => copy! TBody' TBody'',
+      copy x Bx =!=> copy! TBody' TBody'',
       not (simpl-tc-instance.check-progress TBody' TBody''), !,
       simpl-tc-instance TBody'' {coq.mk-app X [Bx]} (TRx xs xc) (Rx xs xc),
       RT = prod _ TSort (xs\ prod _ (TClass xs) (xc\ TRx xs xc)),
@@ -302,13 +302,13 @@ namespace hb {
     compile.telescope Ty ProofHd [] [] Clause.
 }
 
-pred tc.gref->pred-name i:gref, o:string.
+func tc.gref->pred-name gref -> string.
 namespace tc {
-  pred lettify.main i:term, o:term.
+  func lettify.main term -> term.
   namespace compile {
-    pred instance i:term, i:term, o:prop.
+    func instance term, term -> prop.
     instance Ty ProofHd Clause :-
-      hb.compile Ty ProofHd Clause.
+      hb.compile Ty ProofHd Clause, !.
   }
 }
 }}.
@@ -378,7 +378,7 @@ pred class-def o:class.
 %  - c1 .. cm are terms built using p1 .. pn and T
 % - [factory-requires FN LMN]
 % [from _ M _] tests whether M is a declared mixin.
-pred from o:factoryname, o:mixinname, o:term.
+pred from o:factoryname, o:mixinname, o:gref.
 
 %%%%% Abbreviations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -392,14 +392,9 @@ pred phant-abbrev o:gref, o:gref, o:abbreviation.
 % [factory-alias->gref X GR] when X is already a factory X = GR
 % however, when X is a phantom abbreviated gref, we find the underlying
 % factory gref GR associated to it.
-func factory-alias->gref gref -> gref, diagnostic.
-factory-alias->gref PhGR GR ok :- phant-abbrev GR PhGR _, !.
-factory-alias->gref GR GR ok :- phant-abbrev GR _ _, !.
-factory-alias->gref GR _ (error Msg) :- !,
-  Msg is {coq.term->string (global GR)} ^
-         " is not a factory or its library (" ^
-        { std.string.concat "." {std.drop-last 1 {coq.gref->path GR} } } ^
-        ") was not correctly imported".
+func factory-alias->gref gref -> gref.
+factory-alias->gref PhGR GR :- phant-abbrev GR PhGR _, !.
+factory-alias->gref GR GR :- phant-abbrev GR _ _, !.
 
 %%%%% Cache of known facts %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -421,9 +416,10 @@ pred is-factory o:gref.
 :index (2 2 1)
 pred sub-class o:classname, o:classname, o:constant, o:int.
 
-% [gref->deps GR MLwP] is a (pre computed) list of dependencies of a know global
+% [gref-deps GR MLwP] is a (pre computed) list of dependencies of a know global
 % constant. The list is topologically sorted
-func gref->deps gref -> mixins.
+:index(2)
+pred gref-deps o:gref, o:mixins.
 
 % [join C1 C2 C3] means that C3 inherits from both C1 and C2
 pred join o:classname, o:classname, o:classname.

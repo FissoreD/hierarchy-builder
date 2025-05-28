@@ -118,7 +118,7 @@ list_factories FL :-
   std.map-filter {findall-factory->constructor} list_factories.aux FL.
 func list_factories.aux prop -> howto.private.factory_deps_prov.
 list_factories.aux (factory->constructor F _) (fdp F DML PML) :-
-  gref->deps F FD,
+  std.once(gref-deps F FD),
   list-w-params_list FD DML,
   list-w-params_list {factory-provides F} PML.
 

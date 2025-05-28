@@ -29,7 +29,7 @@ main-located S (loc-gref (const C)) :- factory->constructor (const C) _, !,
 main-located S (loc-gref (const C)) :- exported-op M _ C, !,
   private.main-operation S M C.
 
-main-located S (loc-gref GR) :- factory-alias->gref GR F ok, not (F = GR), !,
+main-located S (loc-gref GR) :- factory-alias->gref GR F, not (F = GR), !,
   main-located S (loc-gref F).
 
 main-located S (loc-abbreviation A) :- phant-abbrev GR PhB A, factory->constructor (indt F) GR, !,
@@ -41,7 +41,7 @@ main-located S (loc-abbreviation A) :-
   coq.safe-dest-app T (global GR) _, !,
   main-located S (loc-gref GR).
 
-main-located S (loc-gref GR) :- from Factory Mixin (global GR), !,
+main-located S (loc-gref GR) :- from Factory Mixin GR, !,
   private.main-builder S Factory Mixin.
 
 main-located S (loc-gref GR) :-
@@ -227,7 +227,7 @@ main-structure S Class Structure MLwP :-
 func main-factory->constructor string, inductive, gref, gref.
 main-factory->constructor S F PhBuild Build :-
   % fetch
-  gref->deps Build DMLwP,
+  std.once(gref-deps Build DMLwP),
   list-w-params_list DMLwP DML,
   factory-provides (indt F) PMLwP,
   list-w-params_list PMLwP PML,
@@ -301,7 +301,7 @@ main-factory S Factory :-
   % fetch
   coq.env.projections Factory Ps,
   std.map-filter Ps (x\r\ x = some r) Fields,
-  gref->deps (indt Factory) DMLwP,
+  std.once(gref-deps (indt Factory) DMLwP),
   list-w-params_list DMLwP DML,
   factory-provides (indt Factory) PMLwP,
   list-w-params_list PMLwP PML,

@@ -22,11 +22,11 @@ infer-all-these-mixin-args Ps T ML F SFX :- std.do! [
   private.instantiate-all-these-mixin-args FT T ML SFX,
 ].
 
-% [infer-all-gref->deps Ps T GR X] fills in all the arguments of GR
-% which are misxins in gref->deps GR, other arguments are abstracted
-func infer-all-gref->deps list term, term, gref -> term.
-infer-all-gref->deps Ps T GR X :- std.do! [
-  std.assert! (gref->deps GR MLwP) "BUG: gref->deps should never fail",
+% [infer-all-gref-deps Ps T GR X] fills in all the arguments of GR
+% which are misxins in gref-deps GR, other arguments are abstracted
+func infer-all-gref-deps list term, term, gref -> term.
+infer-all-gref-deps Ps T GR X :- std.do! [
+  std.assert! (gref-deps GR MLwP) "BUG: gref-deps should never fail",
   list-w-params_list MLwP ML,
   coq.env.typeof GR Ty,
   coq.mk-eta (-1) Ty (global GR) EtaF,
@@ -106,7 +106,7 @@ local-canonical-mixins-of T MSL :- std.do! [
 % Given TheType and a factory instance (on it), makes all the mixins provided by
 % the factory available for inference.
 func under-mixin-src-from-factory.do! term, term, list prop.
-under-mixin-src-from-factory.do! TheType TheFactory LP :- Actions = [
+under-mixin-src-from-factory.do! TheType TheFactory LP :- std.do! [
   private.factory-instance->new-mixins [] TheFactory ML,
   std.map ML (m\c\ c = mixin-src TheType m TheFactory) MLClauses,
   MLClauses => std.do! LP
@@ -134,7 +134,7 @@ func under-mixins.then list (w-args mixinname),
     (func A -> ) -> A.
 under-mixins.then [] _ Pred Body :- !, Pred Body.
 under-mixins.then [triple M Args T|ML] MkFun Pred Out :- std.do! [
-  infer-all-gref->deps Args T M MTy,
+  infer-all-gref-deps Args T M MTy,
   (@pi-decl `m` MTy m\ mixin-src T M m =>
     under-mixins.then ML MkFun Pred (Body m)),
   MkFun `m` MTy Body Out,
@@ -184,7 +184,7 @@ namespace private {
 % [mixin-for T M MI] synthesizes an instance of mixin M on type T using
 % the databases [mixin-src] and [from]
 func mixin-for term, mixinname -> term.
-mixin-for T M MICompressed :- Actions = [ mixin-src T M Tm,
+mixin-for T M MICompressed :- mixin-src T M Tm, !, std.do! [
   %if-verbose (coq.say {header} "Trying to infer mixin for" M),
   std.assert-ok! (coq.typecheck Tm Ty) "mixin-for: Tm illtyped",
 
@@ -234,7 +234,8 @@ mixin-for_mixin-builder (mixin-for _ _ B) B.
 % a function (MF = Builder Params TheType InferredStuff : Src -> Tgt)
 func builder->term list term, term, factoryname, mixinname -> term.
 builder->term Ps T Src Tgt B :- !, std.do! [
-  from Src Tgt F,
+  from Src Tgt FGR,
+  F = global FGR,
   gref-deps Src MLwP,
   list-w-params_list MLwP ML,
   infer-all-these-mixin-args Ps T ML F B,
@@ -255,7 +256,7 @@ instantiate-all-these-mixin-args F _ _ F.
 func instantiate-all-args-let term, term -> term, diagnostic.
 instantiate-all-args-let (fun N Tm F) T (let N Tm X R) Diag :- !, std.do! [
   coq.safe-dest-app Tm (global TmGR) _,
-  factory-alias->gref TmGR M ok,
+  factory-alias->gref TmGR M,
   if (mixin-for T M X)
      (@pi-def N Tm X m\ instantiate-all-args-let (F m) T (R m) Diag)
      (Diag = error Msg,

@@ -154,7 +154,7 @@ constraint print-ctx mixin-src {
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-pred coq.term-is-gref? i:term, o:gref.
+func coq.term-is-gref? term -> gref.
 coq.term-is-gref? (global GR) GR :- !.
 coq.term-is-gref? (pglobal GR _) GR :- !.
 coq.term-is-gref? (app [Hd|_]) GR :- !, coq.term-is-gref? Hd GR.

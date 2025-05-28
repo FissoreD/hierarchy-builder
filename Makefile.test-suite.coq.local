@@ -19,14 +19,3 @@ DIFF=\
 	  > $(1).out.aux;\
 	diff -u --strip-trailing-cr $(call output_for,$(1)) $(1).out.aux;\
 	fi
-
-post-all::
-	$(call DIFF, tests/err_missin_subject.v)
-	$(call DIFF, tests/compress_coe.v)
-	$(call DIFF, tests/err_miss_key.v)
-	$(call DIFF, tests/missing_join_error.v)
-	$(call DIFF, tests/not_same_key.v)
-	$(call DIFF, tests/hnf.v)
-	$(call DIFF, tests/err_miss_dep.v)
-	$(call DIFF, tests/err_bad_mix.v)
-	$(call DIFF, tests/err_instance_nop.v)

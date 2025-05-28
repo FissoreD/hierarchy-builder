@@ -13,7 +13,7 @@ declare-existing T0 F0 :- std.do! [
     "HB: declare-existing illtyped factory instance",
   std.assert! (coq.safe-dest-app FTy (global FactoryAlias) _)
      "The type of the instance is not a factory",
-  std.assert-ok! (factory-alias->gref FactoryAlias Factory) "HB: ",
+  std.assert! (factory-alias->gref FactoryAlias Factory) "HB: ",
   private.declare-instance Factory T F Clauses _ _,
   acc-clauses current Clauses,
 ].
@@ -43,7 +43,7 @@ declare-const Name BodySkel TyWPSkel CFL CSL :- std.do! [
 
   % identify the factory
   std.assert! (coq.safe-dest-app SectionTy (global FactoryAlias) Args) "The type of the instance is not a factory",
-  std.assert-ok! (factory-alias->gref FactoryAlias Factory) "HB",
+  std.assert! (factory-alias->gref FactoryAlias Factory) "HB",
   std.assert! (factory->nparams Factory NParams) "Not a factory synthesized by HB",
 
   % declare the constant for the factory instance
@@ -173,7 +173,7 @@ infer-class T Class Struct MLwP S Name STy Clauses:- std.do![
      
 ].
 
-pred decl-const-in-struct i:term, i:string, i:term, i:term, i:constant.
+func decl-const-in-struct term, string, term, term, constant ->.
 decl-const-in-struct T Name S STy CS:- std.do![
   log.coq.env.add-const-noimplicits Name S STy @transparent! CS, % Bug coq/coq#11155, could be a Let
   % TODO: fine tune the instance priority, I do not see the API for that now.
@@ -222,14 +222,14 @@ pred context.declare i:factories, o:mixins, o:list term, o:term, o:list prop, o:
 
 func mk-factory-sort-deps gref -> list (pair id constant).
 mk-factory-sort-deps AliasGR CSL :- std.do! [
-  std.assert-ok! (factory-alias->gref AliasGR GR) "HB: mk-factory-sort-deps",
-  gref->deps GR MLwPRaw,
+  std.assert! (factory-alias->gref AliasGR GR) "HB: mk-factory-sort-deps",
+  gref-deps GR MLwPRaw,
   context.declare MLwPRaw MLwP SortParams SortKey SortMSL _,
-  SortMSL => synthesis.infer-all-gref->deps SortParams SortKey GR FSort,
+  SortMSL => synthesis.infer-all-gref-deps SortParams SortKey GR FSort,
   log.coq.env.add-section-variable-noimplicits "f" FSort CF,
   GCF = global (const CF),
   factory-sort (coercion GRFSort _ GR _),
-  SortMSL => synthesis.infer-all-gref->deps SortParams SortKey GRFSort KSort,
+  SortMSL => synthesis.infer-all-gref-deps SortParams SortKey GRFSort KSort,
   coq.mk-app KSort [GCF] KFSortEta,
   list-w-params_list MLwP ML,
   std.length ML NMLArgs,
@@ -247,10 +247,10 @@ mk-factory-sort-deps AliasGR CSL :- std.do! [
 
 func mk-factory-sort-factory gref -> list (pair id constant), list (pair id constant).
 mk-factory-sort-factory AliasGR CFL CSL :- std.do! [
-  std.assert-ok! (factory-alias->gref AliasGR GR) "HB",
-  gref->deps GR MLwPRaw,
+  std.assert! (factory-alias->gref AliasGR GR) "HB",
+  gref-deps GR MLwPRaw,
   context.declare MLwPRaw MLwP SortParams SortKey SortMSL _,
-  SortMSL => synthesis.infer-all-gref->deps SortParams SortKey GR FSort,
+  SortMSL => synthesis.infer-all-gref-deps SortParams SortKey GR FSort,
   log.coq.env.add-section-variable-noimplicits "f" FSort CF,
   std.length {list-w-params_list MLwP} NMLArgs,
   coq.mk-n-holes NMLArgs SortMLHoles,
@@ -318,7 +318,7 @@ add-mixin T FGR MakeCanon MissingMixin [MixinSrcCl, BuilderDeclCl] CSL :- std.do
 
   std.assert-ok! (coq.typecheck Bo Ty) "declare-instances: mixin illtyped",
   safe-dest-app Ty (global MixinNameAlias) _,
-  std.assert-ok! (factory-alias->gref MixinNameAlias MixinName) "HB",
+  std.assert! (factory-alias->gref MixinNameAlias MixinName) "HB",
 
   std.assert! (MissingMixin = MixinName) "HB: anomaly: we built the wrong mixin",
 
@@ -437,7 +437,7 @@ optimize-class-body _ _ (app L) (app L) [].
 func declare-mixin-name term -> term, list prop.
 declare-mixin-name (global _ as T) T [] :- !.
 declare-mixin-name T (global GR) [] :- mixin-mem T GR, !.
-declare-mixin-name T T [] :- coq.safe-dest-app T T' _, coq.term->gref T' GR, not (from _ _ (global GR)), not (get-option "hnf" tt).
+declare-mixin-name T T [] :- coq.safe-dest-app T (global GR) _, not (from _ _ GR), not (get-option "hnf" tt), !.
 declare-mixin-name T (global (const C)) [mixin-mem T (const C)] :- std.do! [
   Name is "HB_unnamed_mixin_" ^ {std.any->string {new_int}},
   if-verbose (coq.say {header} "Giving name" Name "to mixin instance" {coq.term->string T}),
