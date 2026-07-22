@@ -148,7 +148,7 @@ namespace hb {
     std.map [RHHyps, RTHyps, RevArgs] std.rev [HHyps, THyps, Args],
     coq.mk-app ProofHd HHyps Proof,
     coq.typecheck Proof _ ok, %This instantiates the parameters, if applicable
-    tc.gref->pred-name Class PredName,
+    tc.gref->pred-name "tc" Class PredName,
     if (var HA) (HArgs = HRArgs, RArgs = Args)
       (std.append HLArgs [HA|HRArgs] HArgs, std.split-at {std.length HLArgs} Args LArgs [_|RArgs]),
     coq.elpi.predicate PredName {std.append HArgs [Proof]} C,
@@ -268,7 +268,7 @@ namespace hb {
     coq.env.projection-record? PC TStruct,
     class-def (class (indt TC) (indt TStruct) _), !,
 
-    tc.gref->pred-name (indt TC) PredName,
+    tc.gref->pred-name "tc" (indt TC) PredName,
     get-structure-class-projection (indt TStruct) TCPC,
     if (TCPC = primitive _) (TCP = TCPC)
       (coq.mk-app TCPC Params TCP),
@@ -413,7 +413,7 @@ namespace hb {
     compile Ty (global InstGR) Clause UClause JClause.
 }
 
-func tc.gref->pred-name gref -> string.
+func tc.gref->pred-name string, gref -> string.
 namespace tc {
   func lettify.main term -> term.
   func add-tc-db id, grafting, prop ->.
