@@ -25,6 +25,15 @@ Set Primitive Projections.
 From elpi Require Import elpi coercion tc cs.
 
 From elpi.apps.tc.elpi Extra Dependency "tc_aux.elpi" as tc_aux.
+From elpi.apps.tc.elpi Extra Dependency "ho_precompile.elpi" as ho_precompile.
+From elpi.apps.tc.elpi Extra Dependency "ho_compile.elpi" as ho_compile.
+From elpi.apps.tc.elpi Extra Dependency "compiler1.elpi" as compiler1.
+From elpi.apps.tc.elpi Extra Dependency "modes.elpi" as modes.
+From elpi.apps.tc.elpi Extra Dependency "unif.elpi" as unif.
+From elpi.apps.tc.elpi Extra Dependency "ho_link.elpi" as ho_link.
+From elpi.apps.tc.elpi Extra Dependency "solver.elpi" as solver.
+From elpi.apps.tc.elpi Extra Dependency "create_tc_predicate.elpi" as create_tc_predicate.
+From elpi.apps.tc.elpi Extra Dependency "cs.elpi" as cs.
 
 TC.AddAllClasses.
 TC.AddAllInstances.
@@ -1048,8 +1057,20 @@ HB.structure Definition StructureName params :=
 #[arguments(raw)] Elpi Command HB.structure.
 Elpi Accumulate Db coercion.db.
 Elpi Accumulate Db tc.db.
+Elpi Accumulate Db tc_options.db.
 Elpi Accumulate Db cs.db.
+
 Elpi Accumulate File tc_aux.
+Elpi Accumulate File unif.
+Elpi Accumulate File ho_link.
+Elpi Accumulate File ho_precompile.
+Elpi Accumulate File ho_compile.
+Elpi Accumulate File compiler1.
+Elpi Accumulate File modes.
+Elpi Accumulate File create_tc_predicate.
+Elpi Accumulate File solver.
+Elpi Accumulate File cs.
+
 Elpi Accumulate File "HB/common/stdpp.elpi".
 Elpi Accumulate File "HB/common/database.elpi".
 Elpi Accumulate File "HB/common/compat_acc_clauses_all.elpi".
