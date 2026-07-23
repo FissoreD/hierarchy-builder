@@ -427,11 +427,11 @@ namespace tc {
   func lettify.main term -> term.
   func add-tc-db id, grafting, prop ->.
   func get-full-path gref -> string.
-  namespace compile {
-    func instance term, term -> prop.
-    instance Ty ProofHd Clause :-
-      hb.compile Ty ProofHd Clause _ _, !.
-  }
+  % namespace compile {
+  %   func instance term, term -> prop.
+  %   instance Ty ProofHd Clause :-
+  %     hb.compile Ty ProofHd Clause _ _, !.
+  % }
 
   func add-inst.aux gref, gref, list prop, grafting ->.
   add-inst.aux Inst TC Locality Grafting :-

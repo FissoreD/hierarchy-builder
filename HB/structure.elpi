@@ -95,6 +95,7 @@ declare Module BSkel Sort :- std.do! [
 
   if-verbose (coq.say {header} "declaring constructor as canonical" ConstPack),
   class-def CurrentClass => (private.sort-cs-catch-all ClassName NParams, private.class-cs-catch-all ClassName NParams),
+  % class-def CurrentClass => (private.compile-cs ClassName),
 
 	coq.hints.add-mode ClassName "typeclass_instances" {std.append {std.list.make {w-params.nparams MLwP} mode-input} [mode-input]},
 	coq.TC.declare-class ClassName,
@@ -744,6 +745,15 @@ pack-body.aux PL T BuildC PackS  Body :- !, std.do! [
   synthesis.infer-all-gref->deps PL T BuildC Class,
   mk-app (global PackS) {std.append PL [T, Class]} Body
 ].
+
+% TODO: does not work since the class predicate for axioms_
+% is not yet declared, ie the premise of the CS cannot be
+% compiled
+func compile-cs i:classname.
+compile-cs ClassName :-
+  std.once(class-def (class ClassName S _)),
+  get-constructor S PackS,
+  cs.compiler.cs.main (global PackS).
 
 % [sort-cs-catch-all ClassName] declares a generic canonical
 %  structure for the sort projection on the structure on class ClassName,
