@@ -1703,15 +1703,16 @@ Elpi Accumulate tc.db lp:{{
     std.once(class-def (class C1 Rec1 _)),
     std.once(class-def (class C2 Rec2 _)),
     std.once(join C1 C2 JOIN),
+    split-last TyAg Args Ag,
+
     if (C2 == JOIN) (
       get-structure-coercion Rec2 Rec1 Coe,
-      coq.mk-app Class [{coq.mk-app Coe TyAg }] R
+      coq.mk-app Class {std.append Args [{coq.mk-app Coe {std.append Args [Ag]} }] } R
     ) /* else */ (
       std.once(class-def (class JOIN JOINST _)),
       get-structure-coercion JOINST Rec2 Coe2,
       get-structure-coercion JOINST Rec1 Coe1,
 
-      split-last TyAg _Args Ag,
 
       coq.mk-app Coe2 [X_] Ag,
       coq.mk-app Coe1 [X_] Rx,
