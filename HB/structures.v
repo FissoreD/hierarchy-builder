@@ -433,20 +433,20 @@ namespace tc {
   %     hb.compile Ty ProofHd Clause _ _, !.
   % }
 
-  func add-inst.aux gref, gref, list prop, grafting ->.
-  add-inst.aux Inst TC Locality Grafting :-
-    coq.env.current-section-path SectionPath,
-    hb.compile.instance-gr Inst Clause UClause JClause, 
-    tc.get-full-path Inst _ClauseName, !,
-    (Locality => (
-      if (var UClause) true (
-        tc.add-tc-db _ (after {calc (int_to_string 100)}) UClause,
-        tc.add-tc-db _ (after {calc (int_to_string 100)}) JClause),
-      tc.add-tc-db _ Grafting Clause, 
-      tc.add-tc-db _ Grafting (tc.instance SectionPath Inst TC Locality))).
-  add-inst.aux Inst _ _ _ :- !,!,
-    (@global! => tc.add-tc-db _ _ (tc.banned Inst)),
-    coq.error "Not-added" "TC_solver" "[TC] Not yet able to compile" Inst "...".
+  % func add-inst.aux gref, gref, list prop, grafting ->.
+  % add-inst.aux Inst TC Locality Grafting :-
+  %   coq.env.current-section-path SectionPath,
+  %   hb.compile.instance-gr Inst Clause UClause JClause, 
+  %   tc.get-full-path Inst _ClauseName, !,
+  %   (Locality => (
+  %     if (var UClause) true (
+  %       tc.add-tc-db _ (after {calc (int_to_string 100)}) UClause,
+  %       tc.add-tc-db _ (after {calc (int_to_string 100)}) JClause),
+  %     tc.add-tc-db _ Grafting Clause, 
+  %     tc.add-tc-db _ Grafting (tc.instance SectionPath Inst TC Locality))).
+  % add-inst.aux Inst _ _ _ :- !,!,
+  %   (@global! => tc.add-tc-db _ _ (tc.banned Inst)),
+  %   coq.error "Not-added" "TC_solver" "[TC] Not yet able to compile" Inst "...".
 
 }
 
@@ -1659,3 +1659,84 @@ Notation "`Error_cannot_unify: t1 'with' t2" := (unify t1 t2 None)
   Notation "`Error: t `is_not_canonically_a T" := (unify t _ (Some (is_not_canonically_a, T)))
   (at level 0, T at level 0, format "`Error:  t  `is_not_canonically_a  T", only printing) :
   form_scope.
+
+
+Elpi Accumulate tc.db lp:{{
+  func split-last list A -> list A, A.
+  :after "0"
+  split-last [X] [] X :- !.
+  :after "1"
+  split-last [X|Xs] [X|Y] Z :- !, split-last Xs Y Z.
+
+  func build-coe constant, list term, term, gref -> term.
+  build-coe C TyAg Class Rec1 R :- !,
+    Rec2 = indt {coq.env.projection-record? C},
+    % TODO: instead of getting from the DB, use dynamic search on the graph
+    std.once(class-def (class C1 Rec1 _)),
+    std.once(class-def (class C2 Rec2 _)),
+    std.once(join C1 C2 JOIN),
+    if (C2 == JOIN) (
+      get-structure-coercion Rec2 Rec1 Coe,
+      coq.mk-app Class [{coq.mk-app Coe TyAg }] R
+    ) /* else */ (
+      std.once(class-def (class JOIN JOINST _)),
+      get-structure-coercion JOINST Rec2 Coe2,
+      get-structure-coercion JOINST Rec1 Coe1,
+
+      split-last TyAg _Args Ag,
+
+      coq.mk-app Coe2 [X_] Ag,
+      coq.mk-app Coe1 [X_] Rx,
+      coq.mk-app Class [Rx] R
+    ).
+
+}}.
+
+Elpi Accumulate cs lp:{{
+  func build-join-prim-proj string, constant, term, gref, gref, list term, term -> prop.
+  build-join-prim-proj PredName Can Ag ClProj Rec1 TP S 
+    (pi pp n ty h tys tyag\ Hd pp n :- 
+      coq.projection->gref pp (const Can), 
+      coq.typecheck Ag ty ok,
+      coq.safe-dest-app ty h tys,
+      std.append tys [Ag] tyag,
+      build-coe Can tyag (global ClProj) Rec1 S) :-
+    pi pp n\ std.append TP [app [primitive (proj pp n), Ag], S] (Args pp n),
+    coq.elpi.predicate PredName (Args pp n) (Hd pp n).
+
+  func build-join-can string, constant, term, gref, gref, list term, term -> prop.
+  build-join-can PredName Can Ag ClProj Rec1 TP S 
+    (pi tyag\ Hd tyag :- std.last tyag Ag,
+       build-coe Can tyag (global ClProj) Rec1 S) :-
+    pi tyag\ sigma Args\
+      coq.mk-app (global (const Can)) tyag (App tyag),
+      std.append TP [App tyag, S] Args,
+      coq.elpi.predicate PredName Args (Hd tyag).
+
+  func build-join gref, constant, list term, term, term, (func string, constant, term, gref, gref, list term, term -> prop) -> prop.
+  build-join (const C as ClProj) Can TP Ag S F Rule :-
+    Rec1 = indt {coq.env.projection-record? C},
+    std.once(class-def (class Cl Rec1 _)),
+    tc.gref->pred-name "tc" Cl PredName,
+    F PredName Can Ag ClProj Rec1 TP S Rule.
+
+  func build-join.params int, gref, constant, list term, term, term, (func string, constant, term, gref, gref, list term, term -> prop) -> prop.
+  build-join.params 0 G Can TP Ag S F R :- !, build-join G Can {std.rev TP} Ag S F R.
+  build-join.params M G Can TP AG S F (pi x\ R x) :-
+    M' is M - 1,
+    pi x\ build-join.params M' G Can [x|TP] AG S F (R x).
+
+  func compile-join.aux gref, (func string, constant, term, gref, gref, list term, term -> prop) -> prop.
+  compile-join.aux (const C as ClassGR) F (pi can ag r\ R can ag r) :-
+    coq.env.projection? C N,
+    pi pp can n ag r\ build-join.params N ClassGR can [] ag r F (R can ag r).
+
+  func compile-join gref.
+  compile-join ClassGR :-
+    tc.add-tc-db _ _ {compile-join.aux ClassGR build-join-prim-proj},
+    tc.add-tc-db _ _ {compile-join.aux ClassGR build-join-can} .
+
+  :after "0"
+  cs.main [str "join", trm (global T)] :-
+    compile-join T, !.
+}}.

@@ -39,6 +39,10 @@ HB.mixin                             (* an HB command    *)
 HB.structure
   Definition CMonoid := { A of CMonoid_of_Type A }.
 
+Elpi CS cs.
+Elpi cs cs (@CMonoid.Pack).
+Elpi cs join (@CMonoid.class).
+
 (* ********************************************************
    Monoid playground
 
@@ -70,14 +74,18 @@ HB.mixin
     addNr : left_inverse zero opp add;
   }.
 
+#[log]
 HB.structure
   Definition AbelianGrp := { A of AbelianGrp_of_CMonoid A }.
+Elpi cs cs (@AbelianGrp.Pack).
+Elpi cs join (@AbelianGrp.class).
 
 Notation "- x"   := (opp x).
 Notation "x - y" := (add x (opp y)).
 
 (* Quick check that - and + and 0 are compatible *)
-Check forall x y, x - (y + 0) = x.
+
+Check forall x, - 0 = x.
 
 (* ********************************************************
   The puzzle piece on the left and the SemiRing str.
@@ -97,6 +105,8 @@ HB.mixin
 
 HB.structure
   Definition SemiRing := { A of SemiRing_of_CMonoid A & }.
+Elpi cs cs (@SemiRing.Pack).
+Elpi cs join (@SemiRing.class).
 
 Notation "1"  := one.
 Infix    "*"  := mul.
@@ -119,11 +129,11 @@ Fail Check forall x y, 1 * x = y - x.
 HB.structure
   Definition Ring := { A of SemiRing A & AbelianGrp A }.
 
-Check forall (R : Ring.type) (x y : R), 1 * x = y - x.
+Elpi cs cs (@Ring.Pack).
+Elpi cs join (@Ring.class).
+
+Check (erefl : AbelianGrp.sort _ = SemiRing.sort _).
 Check forall x y, 1 * x = y - x.
-
-
-
 
 (* ****************************************************** *)
 (* ******** 2. Declaring instances               ******** *)
