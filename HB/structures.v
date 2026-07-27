@@ -1668,9 +1668,37 @@ Elpi Accumulate tc.db lp:{{
   :after "1"
   split-last [X|Xs] [X|Y] Z :- !, split-last Xs Y Z.
 
+  % [build-coe Ps Ag Class Rec -> R]
+  % Ps is the dynamic projection.sort that should be joint with the current sort
+  % Ag is the dynamic list of arguments applied to C
+  % T is the static name of the projection.class for the current structure
+  % Rec is the static record type of which T is a projection
+  % R is the application of Class to a coercion that is the join with Ps
+
+  /* The goal is to compute the join of two structures
+   * There are two cases, distinguished by the if in the rule
+   * - AbelianGrp.sort ?x = CMnoid.sort ?y
+   *     Ps = AbelianGrp.sort
+   *     TyAg = [?x]
+   *     Class = Monoid.class
+   *     Rec = Monoid.type
+   *     R = ?y
+   *    The join between AbelianGrp and Monoid is AbelianGrp,
+   *    then it assigns ?y := Monoid.class (AbelianGrp->Monoid ?x) (modulo Monoid.pack)
+   * - AbelianGrp.sort ?x = SemiRing.sort ?y
+   *     Ps = AbelianGrp.sort
+   *     TyAg = [?x]
+   *     Class = SemiRing.class
+   *     Rec = SemiRing.type
+   *     R = ?y
+   *    The join between AbelianGrp and SemiRing is Ring,
+   *    ?x is assigned to Ring->AbelianGrp ?z
+   *    ?y is assigned to SemiRing.class (Ring->SemiRing ?z) (modulo SemiRing.pack)
+   */
   func build-coe constant, list term, term, gref -> term.
-  build-coe C TyAg Class Rec1 R :- !,
-    Rec2 = indt {coq.env.projection-record? C},
+  :after "0"
+  build-coe Ps TyAg Class Rec1 R :- !,
+    Rec2 = indt {coq.env.projection-record? Ps},
     % TODO: instead of getting from the DB, use dynamic search on the graph
     std.once(class-def (class C1 Rec1 _)),
     std.once(class-def (class C2 Rec2 _)),

@@ -119,7 +119,7 @@ Check forall x y, 1 + x = y * x.
 *)
 Fail Check forall x y, 1 * x = y - x.
 
-
+Check (erefl : AbelianGrp.sort _ = CMonoid.sort _).
 
 
 (* ********************************************************
