@@ -1695,70 +1695,73 @@ Elpi Accumulate tc.db lp:{{
    *    ?x is assigned to Ring->AbelianGrp ?z
    *    ?y is assigned to SemiRing.class (Ring->SemiRing ?z) (modulo SemiRing.pack)
    */
-  func build-coe constant, list term, term, gref -> term.
-  :after "0"
-  build-coe Ps TyAg Class Rec1 R :- !,
+  func build-coe constant, list term, (func term -> term), gref -> term.
+  build-coe Ps TyAg PartialSol Rec1 R :- !,
     Rec2 = indt {coq.env.projection-record? Ps},
     % TODO: instead of getting from the DB, use dynamic search on the graph
     std.once(class-def (class C1 Rec1 _)),
     std.once(class-def (class C2 Rec2 _)),
     std.once(join C1 C2 JOIN),
-    split-last TyAg Args Ag,
-
     if (C2 == JOIN) (
       get-structure-coercion Rec2 Rec1 Coe,
-      coq.mk-app Class {std.append Args [{coq.mk-app Coe {std.append Args [Ag]} }] } R
+      coq.mk-app Coe TyAg P
     ) /* else */ (
       std.once(class-def (class JOIN JOINST _)),
       get-structure-coercion JOINST Rec2 Coe2,
       get-structure-coercion JOINST Rec1 Coe1,
 
+      split-last TyAg _Args Ag,
 
-      coq.mk-app Coe2 [X_] Ag,
-      coq.mk-app Coe1 [X_] Rx,
-      coq.mk-app Class [Rx] R
-    ).
+      indt J = JOIN,
+      coq.env.indt J _ N _ _ _ _,
+      N' is N - 1,
+      std.append {coq.mk-n-holes N'} [X_] CoeArgs,
 
+      coq.mk-app Coe2 CoeArgs Ag,
+      coq.mk-app Coe1 CoeArgs P
+    ),
+    PartialSol P R.
 }}.
 
 Elpi Accumulate cs lp:{{
-  func build-join-prim-proj string, constant, term, gref, gref, list term, term -> prop.
-  build-join-prim-proj PredName Can Ag ClProj Rec1 TP S 
-    (pi pp n ty h tys tyag\ Hd pp n :- 
+  func build-join-prim-proj string, constant, term, gref, list term, term -> prop.
+  build-join-prim-proj PredName Can Class Rec1 ClassAg S 
+    (pi pp n ty h tys tyag Ag\ Hd pp n Ag :- 
       coq.projection->gref pp (const Can), 
       coq.typecheck Ag ty ok,
       coq.safe-dest-app ty h tys,
       std.append tys [Ag] tyag,
-      build-coe Can tyag (global ClProj) Rec1 S) :-
-    pi pp n\ std.append TP [app [primitive (proj pp n), Ag], S] (Args pp n),
-    coq.elpi.predicate PredName (Args pp n) (Hd pp n).
+      build-coe Can tyag PartialSol Rec1 S) :-
+    PartialSol = (x\r\ sigma A\ std.append ClassAg [x] A, coq.mk-app Class A r),
+    pi pp n Ag\ std.append ClassAg [app [primitive (proj pp n), Ag], S] (Args pp n Ag),
+    coq.elpi.predicate PredName (Args pp n Ag) (Hd pp n Ag).
 
-  func build-join-can string, constant, term, gref, gref, list term, term -> prop.
-  build-join-can PredName Can Ag ClProj Rec1 TP S 
-    (pi tyag\ Hd tyag :- std.last tyag Ag,
-       build-coe Can tyag (global ClProj) Rec1 S) :-
+  func build-join-can string, constant, term, gref, list term, term -> prop.
+  build-join-can PredName Can Class Rec1 ClassAg S 
+    (pi tyag\ Hd tyag :- build-coe Can tyag PartialSol Rec1 S) :-
+    PartialSol = (x\r\ sigma A\ std.append ClassAg [x] A, coq.mk-app Class A r),
     pi tyag\ sigma Args\
       coq.mk-app (global (const Can)) tyag (App tyag),
-      std.append TP [App tyag, S] Args,
+      std.append ClassAg [App tyag, S] Args,
       coq.elpi.predicate PredName Args (Hd tyag).
 
-  func build-join gref, constant, list term, term, term, (func string, constant, term, gref, gref, list term, term -> prop) -> prop.
-  build-join (const C as ClProj) Can TP Ag S F Rule :-
+  func build-join gref, constant, list term, term, (func string, constant, term, gref, list term, term -> prop) -> prop.
+  build-join (const C as ClProj) Can ClassAg S F Rule :-
     Rec1 = indt {coq.env.projection-record? C},
     std.once(class-def (class Cl Rec1 _)),
     tc.gref->pred-name "tc" Cl PredName,
-    F PredName Can Ag ClProj Rec1 TP S Rule.
+    F PredName Can (global ClProj) Rec1 ClassAg S Rule.
 
-  func build-join.params int, gref, constant, list term, term, term, (func string, constant, term, gref, gref, list term, term -> prop) -> prop.
-  build-join.params 0 G Can TP Ag S F R :- !, build-join G Can {std.rev TP} Ag S F R.
-  build-join.params M G Can TP AG S F (pi x\ R x) :-
+  func build-join.params int, gref, constant, list term, term, (func string, constant, term, gref, list term, term -> prop) -> prop.
+  build-join.params 0 G Can ClassAg S F R :- !, build-join G Can {std.rev ClassAg} S F R.
+  build-join.params M G Can ClassAg S F (pi x\ R x) :-
     M' is M - 1,
-    pi x\ build-join.params M' G Can [x|TP] AG S F (R x).
+    pi x\ build-join.params M' G Can [x|ClassAg] S F (R x).
 
-  func compile-join.aux gref, (func string, constant, term, gref, gref, list term, term -> prop) -> prop.
-  compile-join.aux (const C as ClassGR) F (pi can ag r\ R can ag r) :-
+  func compile-join.aux gref, (func string, constant, term, gref, list term, term -> prop) -> prop.
+  compile-join.aux (const C as ClassGR) F (pi can r\ R can r) :-
     coq.env.projection? C N,
-    pi pp can n ag r\ build-join.params N ClassGR can [] ag r F (R can ag r).
+    pi pp can n r\ build-join.params N ClassGR can [] r F (R can r).
 
   func compile-join gref.
   compile-join ClassGR :-
